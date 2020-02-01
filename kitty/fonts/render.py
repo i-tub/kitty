@@ -178,6 +178,7 @@ def render_special(
 
     if underline:
         t = underline_thickness
+        underline_position += 6 # Hard-coded hack to get Fixed 6x13 to work
         if underline > 1:
             t = max(1, min(cell_height - underline_position - 1, t))
         dl([None, add_line, add_dline, add_curl][underline], underline_position, t, cell_height)
