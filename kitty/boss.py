@@ -1030,6 +1030,11 @@ class Boss:
         cwd_from = w.child.pid_for_cwd if w is not None else None
         self._create_tab(args, cwd_from=cwd_from)
 
+    def new_tab_with_test(self, *args):
+        print('args', args)
+        special_window = SpecialWindow(None, cwd='/home/tubert/test')
+        self._new_tab(special_window)
+
     def new_tab_with_wd(self, wd):
         special_window = SpecialWindow(None, cwd=wd)
         self._new_tab(special_window)

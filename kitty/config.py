@@ -51,7 +51,7 @@ func_with_args, args_funcs = key_func()
 @func_with_args(
     'pass_selection_to_program', 'new_window', 'new_tab', 'new_os_window',
     'new_window_with_cwd', 'new_tab_with_cwd', 'new_os_window_with_cwd',
-    'launch'
+    'launch', 'new_tab_with_test',
     )
 def shlex_parse(func, rest):
     return func, to_cmdline(rest)
