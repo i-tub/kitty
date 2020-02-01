@@ -480,7 +480,9 @@ class Window:
         if self.opts.strip_trailing_spaces == 'always' or (
                 self.opts.strip_trailing_spaces == 'smart' and not self.screen.is_rectangle_select()):
             lines = ((l.rstrip() or '\n') for l in lines)
-        return ''.join(lines)
+        ret = ''.join(lines)
+        #with open('/tmp/select.log', 'a') as fh: fh.write(json.dumps(ret) + '\n')
+        return ret
 
     def destroy(self):
         self.destroyed = True
