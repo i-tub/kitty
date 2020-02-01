@@ -537,6 +537,11 @@ class Window:
         cmd = [x.replace('INPUT_LINE_NUMBER', str(data['input_line_number'])) for x in self.opts.scrollback_pager]
         get_boss().display_scrollback(self, data['text'], cmd)
 
+    def save_scrollback(self):
+        text = self.as_text(as_ansi=False, add_history=True, add_wrap_markers=False)
+        with open('scrollback', 'w') as fh:
+            fh.write(text)
+
     def paste_bytes(self, text):
         # paste raw bytes without any processing
         if isinstance(text, str):
