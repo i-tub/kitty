@@ -2,6 +2,8 @@
 # vim:fileencoding=utf-8
 # License: GPL v3 Copyright: 2018, Kovid Goyal <kovid at kovidgoyal.net>
 
+import os
+import re
 from collections import namedtuple
 
 from .config import build_ansi_color_table
@@ -29,7 +31,34 @@ def as_rgb(x):
 template_failures = set()
 
 
-def draw_title(draw_data, screen, tab, index):
+def splitpath(path, maxdepth=20):
+     ( head, tail ) = os.path.split(path)
+     return splitpath(head, maxdepth - 1) + [ tail ] \
+         if maxdepth and head and head != path \
+         else [ head or tail ]
+
+def munge_title(title, max_title_length):
+    #print(f'munging --{title}--', max_title_length)
+    match = re.match(r'\w+@([\w-]+): (.*)', title)
+    if match:
+        host, path = match.group(1, 2)
+        dirs = splitpath(path)
+        tail = dirs.pop()
+        title = f'{host}: {tail}'
+        if len(title) > max_title_length:
+            return tail
+        while dirs:
+            tail = os.path.join(dirs.pop(), tail)
+            newtitle = f'{host}: {tail}'
+            if len(newtitle) > max_title_length:
+                break
+            title = newtitle
+        return title
+    else:
+        return title
+
+
+def draw_title(draw_data, screen, tab, index, max_title_length):
     if tab.needs_attention and draw_data.bell_on_tab:
         fg = screen.cursor.fg
         screen.cursor.fg = draw_data.bell_fg
@@ -39,7 +68,9 @@ def draw_title(draw_data, screen, tab, index):
     if tab.is_active and draw_data.active_title_template is not None:
         template = draw_data.active_title_template
     try:
-        title = template.format(title=tab.title, index=index)
+        title = template.format(title=munge_title(
+            tab.title, max_title_length - draw_data.trailing_spaces -
+            draw_data.leading_spaces), index=index)
     except Exception as e:
         if template not in template_failures:
             template_failures.add(template)
@@ -51,7 +82,7 @@ def draw_title(draw_data, screen, tab, index):
 def draw_tab_with_separator(draw_data, screen, tab, before, max_title_length, index, is_last):
     if draw_data.leading_spaces:
         screen.draw(' ' * draw_data.leading_spaces)
-    draw_title(draw_data, screen, tab, index)
+    draw_title(draw_data, screen, tab, index, max_title_length)
     trailing_spaces = min(max_title_length - 1, draw_data.trailing_spaces)
     max_title_length -= trailing_spaces
     extra = screen.cursor.x - before - max_title_length
@@ -73,11 +104,11 @@ def draw_tab_with_fade(draw_data, screen, tab, before, max_title_length, index, 
     for bg in fade_colors:
         screen.cursor.bg = bg
         screen.draw(' ')
-    draw_title(draw_data, screen, tab, index)
+    draw_title(draw_data, screen, tab, index, max_title_length)
     extra = screen.cursor.x - before - max_title_length
     if extra > 0:
         screen.cursor.x = before
-        draw_title(draw_data, screen, tab, index)
+        draw_title(draw_data, screen, tab, index, max_title_length)
         extra = screen.cursor.x - before - max_title_length
         if extra > 0:
             screen.cursor.x -= extra + 1
@@ -123,7 +154,7 @@ def draw_tab_with_powerline(draw_data, screen, tab, before, max_title_length, in
     if min_title_length >= max_title_length:
         screen.draw('…')
     else:
-        draw_title(draw_data, screen, tab, index)
+        draw_title(draw_data, screen, tab, index, max_title_length)
         extra = screen.cursor.x + start_draw - before - max_title_length
         if extra > 0 and extra + 1 < screen.cursor.x:
             screen.cursor.x -= extra + 1
