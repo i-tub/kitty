@@ -1412,4 +1412,6 @@ the line (same as pressing the Home key)::
 # }}}
 # }}}
 
+o('munge_title', 'None')
+
 type_map = {o.name: o.option_type for o in all_options.values() if hasattr(o, 'option_type')}

@@ -14,6 +14,7 @@ from .layout import Rect
 from .utils import color_as_int, log_error
 from .window import calculate_gl_geometry
 from .rgb import alpha_blend, color_from_int
+from .userfunc import get_func
 
 TabBarData = namedtuple('TabBarData', 'title is_active needs_attention')
 DrawData = namedtuple(
@@ -29,7 +30,7 @@ def as_rgb(x):
 template_failures = set()
 
 
-def draw_title(draw_data, screen, tab, index):
+def draw_title(draw_data, screen, tab, index, max_title_length, munge_title):
     if tab.needs_attention and draw_data.bell_on_tab:
         fg = screen.cursor.fg
         screen.cursor.fg = draw_data.bell_fg
@@ -38,8 +39,11 @@ def draw_title(draw_data, screen, tab, index):
     template = draw_data.title_template
     if tab.is_active and draw_data.active_title_template is not None:
         template = draw_data.active_title_template
+    max_length = max_title_length - draw_data.trailing_spaces - draw_data.leading_spaces
+    title = munge_title(tab.title, max_length)
     try:
-        title = template.format(title=tab.title, index=index)
+        title = template.format(title=title,
+            index=index)
     except Exception as e:
         if template not in template_failures:
             template_failures.add(template)
@@ -48,10 +52,11 @@ def draw_title(draw_data, screen, tab, index):
     screen.draw(title)
 
 
-def draw_tab_with_separator(draw_data, screen, tab, before, max_title_length, index, is_last):
+def draw_tab_with_separator(draw_data, screen, tab, before, max_title_length,
+                            index, is_last, munge_title):
     if draw_data.leading_spaces:
         screen.draw(' ' * draw_data.leading_spaces)
-    draw_title(draw_data, screen, tab, index)
+    draw_title(draw_data, screen, tab, index, max_title_length, munge_title)
     trailing_spaces = min(max_title_length - 1, draw_data.trailing_spaces)
     max_title_length -= trailing_spaces
     extra = screen.cursor.x - before - max_title_length
@@ -67,17 +72,18 @@ def draw_tab_with_separator(draw_data, screen, tab, before, max_title_length, in
     return end
 
 
-def draw_tab_with_fade(draw_data, screen, tab, before, max_title_length, index, is_last):
+def draw_tab_with_fade(draw_data, screen, tab, before, max_title_length, index,
+                       is_last, munge_title):
     tab_bg = draw_data.active_bg if tab.is_active else draw_data.inactive_bg
     fade_colors = [as_rgb(color_as_int(alpha_blend(tab_bg, draw_data.default_bg, alpha))) for alpha in draw_data.alpha]
     for bg in fade_colors:
         screen.cursor.bg = bg
         screen.draw(' ')
-    draw_title(draw_data, screen, tab, index)
+    draw_title(draw_data, screen, tab, index, max_title_length, munge_title)
     extra = screen.cursor.x - before - max_title_length
     if extra > 0:
         screen.cursor.x = before
-        draw_title(draw_data, screen, tab, index)
+        draw_title(draw_data, screen, tab, index, max_title_length, munge_title)
         extra = screen.cursor.x - before - max_title_length
         if extra > 0:
             screen.cursor.x -= extra + 1
@@ -94,7 +100,8 @@ def draw_tab_with_fade(draw_data, screen, tab, before, max_title_length, index, 
     return end
 
 
-def draw_tab_with_powerline(draw_data, screen, tab, before, max_title_length, index, is_last):
+def draw_tab_with_powerline(draw_data, screen, tab, before, max_title_length,
+                            index, is_last, munge_title):
     tab_bg = as_rgb(color_as_int(draw_data.active_bg if tab.is_active else draw_data.inactive_bg))
     tab_fg = as_rgb(color_as_int(draw_data.active_fg if tab.is_active else draw_data.inactive_fg))
     inactive_bg = as_rgb(color_as_int(draw_data.inactive_bg))
@@ -123,7 +130,7 @@ def draw_tab_with_powerline(draw_data, screen, tab, before, max_title_length, in
     if min_title_length >= max_title_length:
         screen.draw('…')
     else:
-        draw_title(draw_data, screen, tab, index)
+        draw_title(draw_data, screen, tab, index, max_title_length, munge_title)
         extra = screen.cursor.x + start_draw - before - max_title_length
         if extra > 0 and extra + 1 < screen.cursor.x:
             screen.cursor.x -= extra + 1
@@ -192,6 +199,7 @@ class TabBar:
             self.draw_func = draw_tab_with_powerline
         else:
             self.draw_func = draw_tab_with_fade
+        self.munge_title = get_func('munge_title', opts)
 
     def patch_colors(self, spec):
         if 'active_tab_foreground' in spec:
@@ -246,7 +254,8 @@ class TabBar:
             s.cursor.fg = self.active_fg if t.is_active else 0
             s.cursor.bold, s.cursor.italic = self.active_font_style if t.is_active else self.inactive_font_style
             before = s.cursor.x
-            end = self.draw_func(self.draw_data, s, t, before, max_title_length, i + 1, t is last_tab)
+            end = self.draw_func(self.draw_data, s, t, before, max_title_length,
+                                 i + 1, t is last_tab, self.munge_title)
             cr.append((before, end))
             if s.cursor.x > s.columns - max_title_length and t is not last_tab:
                 s.cursor.x = s.columns - 2
