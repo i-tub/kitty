@@ -171,7 +171,7 @@ def find_best_match(
     prefer_variable: bool = False
 ) -> CoreTextFont:
     q = family_name_to_key(family)
-    font_map = all_fonts_map(monospaced)
+    font_map = all_fonts_map(monospaced=False)
     scorer = create_scorer(bold, italic, monospaced, prefer_variable=prefer_variable)
 
     # First look for an exact match
