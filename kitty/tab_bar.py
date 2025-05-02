@@ -28,6 +28,7 @@ from .fast_data_types import (
     viewport_for_window,
     wcswidth,
 )
+from .munge_title import munge_title
 from .progress import ProgressState
 from .rgb import alpha_blend, color_as_sgr, color_from_int, to_color
 from .types import WindowGeometry, run_once
@@ -258,7 +259,6 @@ safe_builtins = {
     'wcswidth': wcswidth,
 }
 
-
 def draw_title(draw_data: DrawData, screen: Screen, tab: TabBarData, index: int, max_title_length: int = 0) -> None:
     ta = TabAccessor(tab.tab_id)
     data = {
@@ -305,6 +305,8 @@ def draw_title(draw_data: DrawData, screen: Screen, tab: TabBarData, index: int,
         report_template_failure(template, str(e))
         title = tab.title
     before_draw = screen.cursor.x
+    max_length = max_title_length - draw_data.trailing_spaces - draw_data.leading_spaces
+    title = munge_title(tab.title, max_length)
     draw_attributed_string(title, screen)
     if draw_data.max_tab_title_length > 0:
         x_limit = before_draw + draw_data.max_tab_title_length
